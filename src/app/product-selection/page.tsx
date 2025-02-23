@@ -16,16 +16,16 @@ interface ApparelOption {
 }
 
 const designs = [
-  { src: '/option1.png' },
-  { src: '/option2.png' },
-  { src: '/option3.png' },
-  { src: '/option4.png' },
-  { src: '/option5.png' },
-  { src: '/option6.png' },
-  { src: '/option7.png' },
-  { src: '/option8.png' },
-  { src: '/option9.png' },
-  { src: '/option10.png' },
+  { src: '/Images/option1.png' },
+  { src: '/Images/option2.png' },
+  { src: '/Images/option3.png' },
+  { src: '/Images/option4.png' },
+  { src: '/Images/option5.png' },
+  { src: '/Images/option6.png' },
+  { src: '/Images/option7.png' },
+  { src: '/Images/option8.png' },
+  { src: '/Images/option9.png' },
+  { src: '/Images/option10.png' },
 ];
 
 export default function ProductSelection() {
@@ -37,12 +37,12 @@ export default function ProductSelection() {
   const apparelOptions: ApparelOption[] = [
     {
       type: 'T-Shirts',
-      image: '/images/tshirt.png',
+      image: '/Images/tshirt.png',
       alt: 'T-Shirt'
     },
     {
       type: 'Hoodies',
-      image: '/images/hoodie.png',
+      image: '/Images/hoodie.png',
       alt: 'Hoodie'
     }
   ];

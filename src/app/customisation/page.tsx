@@ -73,6 +73,11 @@ interface Overlay {
   position: OverlayPosition;
 }
 
+interface TouchPosition {
+  x: number;
+  y: number;
+}
+
 const DraggableOverlay: React.FC<{ 
   id: string;
   image: string; 
@@ -82,160 +87,195 @@ const DraggableOverlay: React.FC<{
   isSelected: boolean;
   onSelect: () => void;
 }> = ({ id, image, position, onPositionChange, onDelete, isSelected, onSelect }) => {
-  const elementRef = useRef<HTMLDivElement>(null);
+  const [touchStartPos, setTouchStartPos] = useState({ x: 0, y: 0 });
+  const [initialScale, setInitialScale] = useState(1);
   const [isResizing, setIsResizing] = useState(false);
-  const initialMousePos = useRef({ x: 0, y: 0 });
-  const initialSize = useRef({ width: 200, height: 200 });
-
-  const handleClick = (e: React.MouseEvent) => {
+  
+  const handleTouchStart = (e: React.TouchEvent) => {
     e.stopPropagation();
+    const touch = e.touches[0];
+    setTouchStartPos({
+      x: touch.clientX - position.x,
+      y: touch.clientY - position.y
+    });
     onSelect();
+
+    // For pinch-to-resize
+    if (e.touches.length === 2) {
+      const distance = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      setInitialScale(position.scale);
+    }
   };
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const handleTouchMove = (e: React.TouchEvent) => {
+    e.stopPropagation();
     e.preventDefault();
-    initialMousePos.current = { x: e.clientX - position.x, y: e.clientY - position.y };
 
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      const newX = moveEvent.clientX - initialMousePos.current.x;
-      const newY = moveEvent.clientY - initialMousePos.current.y;
-      
+    if (e.touches.length === 1) {
+      // Single touch for moving
+      const touch = e.touches[0];
       onPositionChange({
         ...position,
-        x: newX,
-        y: newY
+        x: touch.clientX - touchStartPos.x,
+        y: touch.clientY - touchStartPos.y
       });
-    };
-
-    const handleMouseUp = () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    } else if (e.touches.length === 2) {
+      // Two touches for resizing
+      const distance = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const newScale = (distance / initialScale) * position.scale;
+      onPositionChange({
+        ...position,
+        scale: Math.max(0.1, Math.min(3, newScale)) // Limit scale between 0.1 and 3
+      });
+    }
   };
 
-  const handleResizeStart = (e: React.MouseEvent, corner: string) => {
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    e.stopPropagation();
+  };
+
+  const handleResizeTouchStart = (e: React.TouchEvent) => {
     e.stopPropagation();
     setIsResizing(true);
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const startScale = position.scale;
-    const rect = elementRef.current?.getBoundingClientRect();
-    if (rect) {
-      initialSize.current = { width: rect.width, height: rect.height };
-    }
-
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      moveEvent.preventDefault();
-      const deltaX = moveEvent.clientX - startX;
-      const deltaY = moveEvent.clientY - startY;
-      
-      let newScale = startScale;
-      if (corner.includes('e')) {
-        newScale = startScale * (1 + deltaX / initialSize.current.width);
-      } else if (corner.includes('w')) {
-        newScale = startScale * (1 - deltaX / initialSize.current.width);
-      }
-      
-      if (corner.includes('s')) {
-        newScale = Math.max(newScale, startScale * (1 + deltaY / initialSize.current.height));
-      } else if (corner.includes('n')) {
-        newScale = Math.max(newScale, startScale * (1 - deltaY / initialSize.current.height));
-      }
-
-      onPositionChange({
-        ...position,
-        scale: Math.max(0.1, Math.min(5, newScale))
-      });
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    const touch = e.touches[0];
+    setTouchStartPos({
+      x: touch.clientX,
+      y: touch.clientY
+    });
   };
 
-  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    if (e.shiftKey) {
-      const newRotation = position.rotation + (e.deltaY > 0 ? 5 : -5);
-      onPositionChange({ ...position, rotation: newRotation });
-    }
+  const handleResizeTouchMove = (e: React.TouchEvent) => {
+    if (!isResizing) return;
     e.stopPropagation();
+    e.preventDefault();
+
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchStartPos.x;
+    const deltaY = touch.clientY - touchStartPos.y;
+    const newScale = position.scale + (deltaX + deltaY) / 200; // Adjust sensitivity as needed
+
+    onPositionChange({
+      ...position,
+      scale: Math.max(0.1, Math.min(3, newScale)) // Limit scale between 0.1 and 3
+    });
+
+    setTouchStartPos({
+      x: touch.clientX,
+      y: touch.clientY
+    });
+  };
+
+  const handleResizeTouchEnd = () => {
+    setIsResizing(false);
   };
 
   return (
     <div
-      ref={elementRef}
-      className={`absolute ${isResizing ? '' : 'cursor-move'}`}
-      style={{ 
-        transform: `translate(${position.x}px, ${position.y}px) rotate(${position.rotation}deg) scale(${position.scale})`,
-        transformOrigin: 'center center',
-        touchAction: 'none',
+      style={{
         position: 'absolute',
-        zIndex: 30
+        left: position.x,
+        top: position.y,
+        transform: `scale(${position.scale}) rotate(${position.rotation}deg)`,
+        transformOrigin: 'center center',
+        cursor: 'move',
+        touchAction: 'none',
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
       }}
-      onMouseDown={(e) => {
-        handleClick(e);
-        handleMouseDown(e);
-      }}
-      onWheel={handleWheel}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      className={`overlay ${isSelected ? 'selected' : ''}`}
     >
-      <div style={{ position: 'relative', zIndex: 20 }}>
-        <img
-          src={image}
-          alt="Design overlay"
-          style={{ 
-            maxWidth: '200px',
-            maxHeight: '200px',
-            width: 'auto',
-            height: 'auto',
-            userSelect: 'none',
-            pointerEvents: 'none',
-            objectFit: 'contain'
-          }}
-          crossOrigin="anonymous"
-        />
-      </div>
+      <img 
+        src={image} 
+        alt="Overlay"
+        style={{
+          width: '100px',
+          height: '100px',
+          pointerEvents: 'none',
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+        }}
+        draggable={false}
+      />
       
-      {/* Only show handles and delete button when selected */}
       {isSelected && (
         <>
+          {/* Delete button */}
           <button
-            className="absolute -top-8 -right-8 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 z-10"
             onClick={(e) => {
               e.stopPropagation();
               onDelete();
             }}
+            className="delete-button"
+            style={{
+              position: 'absolute',
+              top: '-10px',
+              right: '-10px',
+              background: 'red',
+              color: 'white',
+              border: 'none',
+              borderRadius: '50%',
+              width: '20px',
+              height: '20px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '14px',
+              zIndex: 10,
+            }}
           >
             ×
           </button>
-          
+
           {/* Resize handles */}
           <div
-            className="absolute w-4 h-4 bg-white border-2 border-blue-500 rounded-full cursor-nw-resize"
-            style={{ top: -8, left: -8, zIndex: 30 }}
-            onMouseDown={(e) => handleResizeStart(e, 'nw')}
+            className="resize-handle"
+            style={{
+              position: 'absolute',
+              bottom: '-12px',
+              right: '-12px',
+              width: '24px',
+              height: '24px',
+              background: 'white',
+              border: '2px solid #2196F3',
+              borderRadius: '50%',
+              cursor: 'se-resize',
+              zIndex: 10,
+              touchAction: 'none',
+            }}
+            onTouchStart={handleResizeTouchStart}
+            onTouchMove={handleResizeTouchMove}
+            onTouchEnd={handleResizeTouchEnd}
           />
+
+          {/* Optional: Add more resize handles for different directions */}
           <div
-            className="absolute w-4 h-4 bg-white border-2 border-blue-500 rounded-full cursor-ne-resize"
-            style={{ top: -8, right: -8, zIndex: 30 }}
-            onMouseDown={(e) => handleResizeStart(e, 'ne')}
-          />
-          <div
-            className="absolute w-4 h-4 bg-white border-2 border-blue-500 rounded-full cursor-sw-resize"
-            style={{ bottom: -8, left: -8, zIndex: 30 }}
-            onMouseDown={(e) => handleResizeStart(e, 'sw')}
-          />
-          <div
-            className="absolute w-4 h-4 bg-white border-2 border-blue-500 rounded-full cursor-se-resize"
-            style={{ bottom: -8, right: -8, zIndex: 30 }}
-            onMouseDown={(e) => handleResizeStart(e, 'se')}
+            className="resize-handle"
+            style={{
+              position: 'absolute',
+              bottom: '-12px',
+              left: '-12px',
+              width: '24px',
+              height: '24px',
+              background: 'white',
+              border: '2px solid #2196F3',
+              borderRadius: '50%',
+              cursor: 'sw-resize',
+              zIndex: 10,
+              touchAction: 'none',
+            }}
+            onTouchStart={handleResizeTouchStart}
+            onTouchMove={handleResizeTouchMove}
+            onTouchEnd={handleResizeTouchEnd}
           />
         </>
       )}
@@ -292,6 +332,8 @@ export default function Customisation() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
+  const [touchStart, setTouchStart] = useState<TouchPosition>({ x: 0, y: 0 });
+  const [lastTouchPosition, setLastTouchPosition] = useState<TouchPosition>({ x: 0, y: 0 });
   
   const apparelOptions = [
     {
@@ -445,95 +487,57 @@ export default function Customisation() {
     return Math.sqrt(dx * dx + dy * dy);
   };
 
-  const handleTouchStart = (e: React.TouchEvent, id: string) => {
-    e.preventDefault();
-    setActiveDesign(id);
+  const handleTouchStart = (e: React.TouchEvent, designId: string) => {
+    if (!e.touches[0]) return;
     
-    if (e.touches.length === 2) {
-      // Pinch gesture started
-      const distance = getDistance(e.touches);
-      setInitialDistance(distance);
-      const design = selectedDesigns.find(d => d.id === id);
-      if (design) {
-        setInitialSize(design.size);
-      }
-    } else {
-      // Single touch for dragging
-      setIsDragging(true);
-      setDragStart({
-        x: e.touches[0].clientX,
-        y: e.touches[0].clientY
-      });
-      const design = selectedDesigns.find(d => d.id === id);
-      if (design) {
-        setLastPosition(design.position);
-      }
-    }
+    e.preventDefault();
+    const touch = e.touches[0];
+    
+    setActiveDesign(designId);
+    setIsDragging(true);
+    setTouchStart({
+      x: touch.clientX,
+      y: touch.clientY
+    });
+    setLastTouchPosition({
+      x: touch.clientX,
+      y: touch.clientY
+    });
   };
 
-  // Update handleTouchMove with boundaries
-  const handleTouchMove = (e: React.TouchEvent, id: string) => {
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging || !activeDesign || !e.touches[0]) return;
+    
     e.preventDefault();
+    const touch = e.touches[0];
 
-    if (e.touches.length === 2 && initialDistance && initialSize) {
-      // Handle pinch zoom (unchanged)
-      const newDistance = getDistance(e.touches);
-      const scale = newDistance / initialDistance;
-      
-      setSelectedDesigns(prev =>
-        prev.map(design =>
-          design.id === id
-            ? {
-                ...design,
-                size: {
-                  width: initialSize.width * scale,
-                  height: initialSize.height * scale
-                }
-              }
-            : design
-        )
-      );
-    } else if (isDragging && e.touches.length === 1) {
-      // Handle drag with boundaries
-      const touch = e.touches[0];
-      const deltaX = touch.clientX - dragStart.x;
-      const deltaY = touch.clientY - dragStart.y;
+    setSelectedDesigns(prevDesigns =>
+      prevDesigns.map(design => {
+        if (design.id === activeDesign) {
+          const deltaX = touch.clientX - lastTouchPosition.x;
+          const deltaY = touch.clientY - lastTouchPosition.y;
+          
+          return {
+            ...design,
+            position: {
+              x: design.position.x + deltaX,
+              y: design.position.y + deltaY
+            }
+          };
+        }
+        return design;
+      })
+    );
 
-      const design = selectedDesigns.find(d => d.id === id);
-      if (!design) return;
-
-      const newPosition = keepInBounds(
-        lastPosition.x + deltaX,
-        lastPosition.y + deltaY,
-        design.size.width,
-        design.size.height
-      );
-
-      setSelectedDesigns(prev =>
-        prev.map(design =>
-          design.id === id
-            ? {
-                ...design,
-                position: newPosition
-              }
-            : design
-        )
-      );
-    }
+    setLastTouchPosition({
+      x: touch.clientX,
+      y: touch.clientY
+    });
   };
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    e.preventDefault();
+  const handleTouchEnd = () => {
     setIsDragging(false);
-    setInitialDistance(null);
-    setInitialSize(null);
-    
-    if (activeDesign) {
-      const design = selectedDesigns.find(d => d.id === activeDesign);
-      if (design) {
-        setLastPosition(design.position);
-      }
-    }
+    setActiveDesign(null);
   };
 
   const handleResizeStart = (e: React.TouchEvent | React.MouseEvent, id: string) => {

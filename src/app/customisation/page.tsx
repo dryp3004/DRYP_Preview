@@ -297,15 +297,15 @@ export default function Customisation() {
     {
       id: 1,
       name: 'T-Shirt',
-      image: '/Images/white-tshirt.png',
-      backImage: '/Images/white-tshirt-back.png',
+      image: '/images/white-tshirt.png',
+      backImage: '/images/white-tshirt-back.png',
       color: 'white',
     },
     {
       id: 2,
       name: 'T-Shirt',
-      image: '/Images/black-tshirt.png',
-      backImage: '/Images/black-tshirt-back.png',
+      image: '/images/black-tshirt.png',
+      backImage: '/images/black-tshirt-back.png',
       color: 'black',
     }
   ];
@@ -962,7 +962,7 @@ export default function Customisation() {
           {/* Base apparel layer */}
           <div className="absolute inset-0" style={{ position: 'absolute', zIndex: 1 }}>
             <Image
-              src={selectedApparel?.image || '/Images/white-tshirt.png'}
+              src={selectedApparel?.image || '/images/white-tshirt.png'}
               alt="T-shirt front view"
               fill
               style={{ 
@@ -1011,7 +1011,7 @@ export default function Customisation() {
         >
           <div className="absolute inset-0">
             <Image
-              src={selectedApparel?.backImage || '/Images/white-tshirt-back.png'}
+              src={selectedApparel?.backImage || '/images/white-tshirt-back.png'}
               alt="T-shirt back view"
               fill
               style={{ 
@@ -1108,8 +1108,8 @@ export default function Customisation() {
                 <div className="absolute inset-0" style={{ zIndex: 1 }}>
                   <Image
                     src={activeView === 'front' 
-                      ? (selectedApparel?.image || '/Images/white-tshirt.png')
-                      : (selectedApparel?.backImage || '/Images/white-tshirt-back.png')
+                      ? (selectedApparel?.image || '/images/white-tshirt.png')
+                      : (selectedApparel?.backImage || '/images/white-tshirt-back.png')
                   }
                     alt={`${selectedApparel?.color || 'white'} t-shirt ${activeView} view`}
                     fill

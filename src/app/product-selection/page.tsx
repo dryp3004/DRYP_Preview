@@ -37,12 +37,12 @@ export default function ProductSelection() {
   const apparelOptions: ApparelOption[] = [
     {
       type: 'T-Shirts',
-      image: '/Images/tshirt.png',
+      image: '/images/tshirt.png',
       alt: 'T-Shirt'
     },
     {
       type: 'Hoodies',
-      image: '/Images/hoodie.png',
+      image: '/images/hoodie.png',
       alt: 'Hoodie'
     }
   ];

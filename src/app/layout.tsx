@@ -4,7 +4,7 @@ import './globals.css'
 import Navbar from '../Components/Navbar'
 
 export const metadata: Metadata = {
-  title: 'BYC - Build Your Clothes',
+  title: 'DRYP Official',
   description: 'Create custom apparel with AI-powered designs',
 }
 

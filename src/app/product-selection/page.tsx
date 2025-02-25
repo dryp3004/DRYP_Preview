@@ -75,7 +75,7 @@ export default function ProductSelection() {
             <h2 className="text-2xl text-white text-center mb-8">
               Choose Your Apparel Type
             </h2>
-            <div className="flex justify-center gap-20">
+            <div className="flex flex-col md:flex-row justify-center md:gap-20 gap-8">
               {apparelOptions.map((apparel) => (
                 <button
                   key={apparel.type}
@@ -86,8 +86,10 @@ export default function ProductSelection() {
                       : 'hover:opacity-80'
                   }`}
                 >
-                  <div className={`relative mb-4 ${
-                    apparel.type === 'T-Shirts' ? 'w-[340px] h-[340px]' : 'w-[410px] h-[410px]'
+                  <div className={`relative ${
+                    apparel.type === 'T-Shirts' 
+                      ? 'w-[200px] h-[200px] md:w-[340px] md:h-[340px]' 
+                      : 'w-[240px] h-[240px] md:w-[410px] md:h-[410px]'
                   }`}>
                     <Image
                       src={apparel.image}
@@ -97,7 +99,7 @@ export default function ProductSelection() {
                       priority
                     />
                   </div>
-                  <span className="text-lg font-medium">{apparel.type}</span>
+                  <span className="text-lg font-medium mt-4">{apparel.type}</span>
                 </button>
               ))}
             </div>

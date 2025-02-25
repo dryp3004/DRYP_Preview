@@ -11,6 +11,7 @@ import html2canvas from 'html2canvas';
 import { StaticImageData } from 'next/image';
 import { DraggableCore } from 'react-draggable';
 import type { DraggableEvent, DraggableData } from 'react-draggable';
+import { DraggableOverlay } from '@/Components/DraggableOverlay';
 
 interface QueuedImage {
   file: File;
@@ -73,216 +74,6 @@ interface Overlay {
   position: OverlayPosition;
 }
 
-interface TouchPosition {
-  x: number;
-  y: number;
-}
-
-const DraggableOverlay: React.FC<{ 
-  id: string;
-  image: string; 
-  position: OverlayPosition; 
-  onPositionChange: (newPosition: OverlayPosition) => void;
-  onDelete: () => void;
-  isSelected: boolean;
-  onSelect: () => void;
-}> = ({ id, image, position, onPositionChange, onDelete, isSelected, onSelect }) => {
-  const [touchStartPos, setTouchStartPos] = useState({ x: 0, y: 0 });
-  const [initialScale, setInitialScale] = useState(1);
-  const [isResizing, setIsResizing] = useState(false);
-  
-  const handleTouchStart = (e: React.TouchEvent) => {
-    e.stopPropagation();
-    const touch = e.touches[0];
-    setTouchStartPos({
-      x: touch.clientX - position.x,
-      y: touch.clientY - position.y
-    });
-    onSelect();
-
-    // For pinch-to-resize
-    if (e.touches.length === 2) {
-      const distance = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-      setInitialScale(position.scale);
-    }
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-
-    if (e.touches.length === 1) {
-      // Single touch for moving
-      const touch = e.touches[0];
-      onPositionChange({
-        ...position,
-        x: touch.clientX - touchStartPos.x,
-        y: touch.clientY - touchStartPos.y
-      });
-    } else if (e.touches.length === 2) {
-      // Two touches for resizing
-      const distance = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-      const newScale = (distance / initialScale) * position.scale;
-      onPositionChange({
-        ...position,
-        scale: Math.max(0.1, Math.min(3, newScale)) // Limit scale between 0.1 and 3
-      });
-    }
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    e.stopPropagation();
-  };
-
-  const handleResizeTouchStart = (e: React.TouchEvent) => {
-    e.stopPropagation();
-    setIsResizing(true);
-    const touch = e.touches[0];
-    setTouchStartPos({
-      x: touch.clientX,
-      y: touch.clientY
-    });
-  };
-
-  const handleResizeTouchMove = (e: React.TouchEvent) => {
-    if (!isResizing) return;
-    e.stopPropagation();
-    e.preventDefault();
-
-    const touch = e.touches[0];
-    const deltaX = touch.clientX - touchStartPos.x;
-    const deltaY = touch.clientY - touchStartPos.y;
-    const newScale = position.scale + (deltaX + deltaY) / 200; // Adjust sensitivity as needed
-
-    onPositionChange({
-      ...position,
-      scale: Math.max(0.1, Math.min(3, newScale)) // Limit scale between 0.1 and 3
-    });
-
-    setTouchStartPos({
-      x: touch.clientX,
-      y: touch.clientY
-    });
-  };
-
-  const handleResizeTouchEnd = () => {
-    setIsResizing(false);
-  };
-
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        left: position.x,
-        top: position.y,
-        transform: `scale(${position.scale}) rotate(${position.rotation}deg)`,
-        transformOrigin: 'center center',
-        cursor: 'move',
-        touchAction: 'none',
-        userSelect: 'none',
-        WebkitUserSelect: 'none',
-      }}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      className={`overlay ${isSelected ? 'selected' : ''}`}
-    >
-      <img 
-        src={image} 
-        alt="Overlay"
-        style={{
-          width: '100px',
-          height: '100px',
-          pointerEvents: 'none',
-          userSelect: 'none',
-          WebkitUserSelect: 'none',
-        }}
-        draggable={false}
-      />
-      
-      {isSelected && (
-        <>
-          {/* Delete button */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
-            className="delete-button"
-            style={{
-              position: 'absolute',
-              top: '-10px',
-              right: '-10px',
-              background: 'red',
-              color: 'white',
-              border: 'none',
-              borderRadius: '50%',
-              width: '20px',
-              height: '20px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '14px',
-              zIndex: 10,
-            }}
-          >
-            ×
-          </button>
-
-          {/* Resize handles */}
-          <div
-            className="resize-handle"
-            style={{
-              position: 'absolute',
-              bottom: '-12px',
-              right: '-12px',
-              width: '24px',
-              height: '24px',
-              background: 'white',
-              border: '2px solid #2196F3',
-              borderRadius: '50%',
-              cursor: 'se-resize',
-              zIndex: 10,
-              touchAction: 'none',
-            }}
-            onTouchStart={handleResizeTouchStart}
-            onTouchMove={handleResizeTouchMove}
-            onTouchEnd={handleResizeTouchEnd}
-          />
-
-          {/* Optional: Add more resize handles for different directions */}
-          <div
-            className="resize-handle"
-            style={{
-              position: 'absolute',
-              bottom: '-12px',
-              left: '-12px',
-              width: '24px',
-              height: '24px',
-              background: 'white',
-              border: '2px solid #2196F3',
-              borderRadius: '50%',
-              cursor: 'sw-resize',
-              zIndex: 10,
-              touchAction: 'none',
-            }}
-            onTouchStart={handleResizeTouchStart}
-            onTouchMove={handleResizeTouchMove}
-            onTouchEnd={handleResizeTouchEnd}
-          />
-        </>
-      )}
-    </div>
-  );
-};
-
 export default function Customisation() {
   const [prompt, setPrompt] = useState('');
   const [images, setImages] = useState<GeneratedImage[]>([]);
@@ -332,8 +123,6 @@ export default function Customisation() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
-  const [touchStart, setTouchStart] = useState<TouchPosition>({ x: 0, y: 0 });
-  const [lastTouchPosition, setLastTouchPosition] = useState<TouchPosition>({ x: 0, y: 0 });
   
   const apparelOptions = [
     {
@@ -487,57 +276,95 @@ export default function Customisation() {
     return Math.sqrt(dx * dx + dy * dy);
   };
 
-  const handleTouchStart = (e: React.TouchEvent, designId: string) => {
-    if (!e.touches[0]) return;
-    
+  const handleTouchStart = (e: React.TouchEvent, id: string) => {
     e.preventDefault();
-    const touch = e.touches[0];
+    setActiveDesign(id);
     
-    setActiveDesign(designId);
-    setIsDragging(true);
-    setTouchStart({
-      x: touch.clientX,
-      y: touch.clientY
-    });
-    setLastTouchPosition({
-      x: touch.clientX,
-      y: touch.clientY
-    });
+    if (e.touches.length === 2) {
+      // Pinch gesture started
+      const distance = getDistance(e.touches);
+      setInitialDistance(distance);
+      const design = selectedDesigns.find(d => d.id === id);
+      if (design) {
+        setInitialSize(design.size);
+      }
+    } else {
+      // Single touch for dragging
+      setIsDragging(true);
+      setDragStart({
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY
+      });
+      const design = selectedDesigns.find(d => d.id === id);
+      if (design) {
+        setLastPosition(design.position);
+      }
+    }
   };
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging || !activeDesign || !e.touches[0]) return;
-    
+  // Update handleTouchMove with boundaries
+  const handleTouchMove = (e: React.TouchEvent, id: string) => {
     e.preventDefault();
-    const touch = e.touches[0];
 
-    setSelectedDesigns(prevDesigns =>
-      prevDesigns.map(design => {
-        if (design.id === activeDesign) {
-          const deltaX = touch.clientX - lastTouchPosition.x;
-          const deltaY = touch.clientY - lastTouchPosition.y;
-          
-          return {
-            ...design,
-            position: {
-              x: design.position.x + deltaX,
-              y: design.position.y + deltaY
-            }
-          };
-        }
-        return design;
-      })
-    );
+    if (e.touches.length === 2 && initialDistance && initialSize) {
+      // Handle pinch zoom (unchanged)
+      const newDistance = getDistance(e.touches);
+      const scale = newDistance / initialDistance;
+      
+      setSelectedDesigns(prev =>
+        prev.map(design =>
+          design.id === id
+            ? {
+                ...design,
+                size: {
+                  width: initialSize.width * scale,
+                  height: initialSize.height * scale
+                }
+              }
+            : design
+        )
+      );
+    } else if (isDragging && e.touches.length === 1) {
+      // Handle drag with boundaries
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - dragStart.x;
+      const deltaY = touch.clientY - dragStart.y;
 
-    setLastTouchPosition({
-      x: touch.clientX,
-      y: touch.clientY
-    });
+      const design = selectedDesigns.find(d => d.id === id);
+      if (!design) return;
+
+      const newPosition = keepInBounds(
+        lastPosition.x + deltaX,
+        lastPosition.y + deltaY,
+        design.size.width,
+        design.size.height
+      );
+
+      setSelectedDesigns(prev =>
+        prev.map(design =>
+          design.id === id
+            ? {
+                ...design,
+                position: newPosition
+              }
+            : design
+        )
+      );
+    }
   };
 
-  const handleTouchEnd = () => {
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    e.preventDefault();
     setIsDragging(false);
-    setActiveDesign(null);
+    setInitialDistance(null);
+    setInitialSize(null);
+    
+    if (activeDesign) {
+      const design = selectedDesigns.find(d => d.id === activeDesign);
+      if (design) {
+        setLastPosition(design.position);
+      }
+    }
   };
 
   const handleResizeStart = (e: React.TouchEvent | React.MouseEvent, id: string) => {
@@ -622,22 +449,13 @@ export default function Customisation() {
     const files = event.target.files;
     if (!files) return;
 
-    const validFiles = Array.from(files)
-      .filter(file => file.type.startsWith('image/'))
-      .map(file => ({
-        file,
-        id: `${file.name}-${Date.now()}-${Math.random()}`  // Create unique ID
-      }));
-    
-    if (validFiles.length === 0) {
-      setError("Please upload valid image files");
-      return;
-    }
-
-    setImageQueue(prevQueue => [...prevQueue, ...validFiles]);
-
-    if (!cropModalOpen) {  // Only process if not already cropping
-      processNextImage(validFiles[0]);
+    const file = files[0]; // Get the first file
+    if (file && file.type.startsWith('image/')) {
+      const imageUrl = URL.createObjectURL(file);
+      setTempImage(imageUrl);
+      setCropModalOpen(true);
+    } else {
+      setError("Please upload a valid image file");
     }
   };
 
@@ -767,92 +585,185 @@ export default function Customisation() {
     }
   };
 
-  const captureView = async (viewRef: React.RefObject<HTMLDivElement>) => {
+  const captureView = async (viewRef: React.RefObject<HTMLDivElement | null>, viewName: string) => {
     if (!viewRef.current) return null;
-    
-    const canvas = await html2canvas(viewRef.current, {
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: null,
-      scale: 2, // Higher quality
-    });
-    
-    return canvas.toDataURL('image/png');
+
+    try {
+      // Create main container
+      const captureContainer = document.createElement('div');
+      captureContainer.style.width = '375px';
+      captureContainer.style.height = '375px';
+      captureContainer.style.left = '50%';
+      captureContainer.style.top = '100%';
+      captureContainer.style.position = 'fixed';
+      captureContainer.style.left = '-9999px';
+      captureContainer.style.backgroundColor = 'white';
+      captureContainer.style.overflow = 'hidden';
+      document.body.appendChild(captureContainer);
+
+      // Create design area container
+      const designArea = document.createElement('div');
+      designArea.style.position = 'relative';
+      designArea.style.width = '100%';
+      designArea.style.height = '100%';
+      designArea.style.display = 'flex';
+      designArea.style.alignItems = 'center';
+      designArea.style.justifyContent = 'center';
+      captureContainer.appendChild(designArea);
+
+      // Add t-shirt image
+      const shirtImg = document.createElement('img');
+      shirtImg.src = viewName === 'front' 
+        ? (selectedApparel?.image || '/images/white-tshirt.png')
+        : (selectedApparel?.backImage || '/images/white-tshirt-back.png');
+      shirtImg.style.position = 'absolute';
+      shirtImg.style.left = '0';
+      shirtImg.style.top = '0';
+      shirtImg.style.width = '100%';
+      shirtImg.style.height = '100%';
+      shirtImg.style.objectFit = 'contain';
+      shirtImg.crossOrigin = 'anonymous';
+      designArea.appendChild(shirtImg);
+
+      // Add overlays
+      const overlays = viewName === 'front' ? frontOverlays : backOverlays;
+      await Promise.all(overlays.map(async (overlay) => {
+        const overlayContainer = document.createElement('div');
+        overlayContainer.style.position = 'absolute';
+        overlayContainer.style.left = overlay.position.x + 'px';
+        overlayContainer.style.top = overlay.position.y + 'px';
+        overlayContainer.style.width = '200px';
+        overlayContainer.style.height = '200px';
+        overlayContainer.style.display = 'flex';
+        overlayContainer.style.alignItems = 'center';
+        overlayContainer.style.justifyContent = 'center';
+
+        const overlayImg = document.createElement('img');
+        overlayImg.src = overlay.image;
+        overlayImg.style.maxWidth = '100%';  // Changed from width to maxWidth
+        overlayImg.style.maxHeight = '100%'; // Changed from height to maxHeight
+        overlayImg.style.objectFit = 'contain';
+        overlayImg.style.transform = `rotate(${overlay.position.rotation}deg) scale(${overlay.position.scale})`;
+        overlayImg.style.transformOrigin = 'center';
+        overlayImg.crossOrigin = 'anonymous';
+
+        overlayContainer.appendChild(overlayImg);
+        designArea.appendChild(overlayContainer);
+
+        await new Promise((resolve) => {
+          overlayImg.onload = resolve;
+        });
+      }));
+
+      // Wait for shirt image to load
+      await new Promise((resolve) => {
+        shirtImg.onload = resolve;
+      });
+
+      // Additional wait to ensure rendering
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Capture with html2canvas
+      const canvas = await html2canvas(captureContainer, {
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        scale: 2,
+        width: 375,
+        height: 425,
+        logging: false,
+        onclone: (clonedDoc) => {
+          const clonedElements = clonedDoc.getElementsByTagName('*');
+          Array.from(clonedElements).forEach(el => {
+            if (el instanceof HTMLElement) {
+              el.style.visibility = 'visible';
+              el.style.opacity = '1';
+            }
+          });
+        }
+      });
+
+      document.body.removeChild(captureContainer);
+      return canvas.toDataURL('image/png', 1.0);
+
+    } catch (error) {
+      console.error(`Error capturing ${viewName} view:`, error);
+      return null;
+    }
   };
 
-  // Update the saveDesign function
   const saveDesign = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerName.trim() || !phoneNumber.trim()) return;
 
     setIsSaving(true);
     try {
-      // Get current date and time
+      // Store current view
+      const originalView = activeView;
+
+      // Capture front view
+      setActiveView('front');
+      // Wait for view to update
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const frontImage = await captureView(frontViewRef, 'front');
+
+      // Capture back view
+      setActiveView('back');
+      // Wait for view to update
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const backImage = await captureView(backViewRef, 'back');
+
+      // Restore original view
+      setActiveView(originalView);
+
+      if (!frontImage || !backImage) {
+        throw new Error('Failed to capture design views');
+      }
+
       const now = new Date();
-      const date = now.toLocaleDateString('en-GB').split('/').join('-'); // DD-MM-YYYY
+      const date = now.toLocaleDateString('en-GB').split('/').join('-');
       const time = now.toLocaleTimeString('en-US', { 
         hour: 'numeric', 
         minute: 'numeric', 
         hour12: true 
-      }).toLowerCase().replace(' ', ''); // hh:mmam/pm
+      }).toLowerCase().replace(' ', '');
 
       const fileName = `${customerName.trim()}-${phoneNumber.trim()}-${date}-${time}`;
 
-      // Get the actual view elements directly
-      const frontView = document.querySelector('[data-testid="front-view"]');
-      const backView = document.querySelector('[data-testid="back-view"]');
-
-      if (!frontView || !backView) {
-        throw new Error('View elements not found');
-      }
-
-      // Configure html2canvas options
-      const canvasOptions = {
-        backgroundColor: null,
-        width: 375,
-        height: 425,
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        onclone: (clonedDoc: Document) => {
-          // Make sure DraggableOverlay components are visible
-          const draggableOverlays = clonedDoc.querySelectorAll('[class*="absolute"]');
-          draggableOverlays.forEach(overlay => {
-            const element = overlay as HTMLElement;
-            element.style.visibility = 'visible';
-            element.style.opacity = '1';
-            element.style.pointerEvents = 'none';
-            element.style.zIndex = '30';
+      // Save overlays first
+      if (frontOverlays.length > 0 || backOverlays.length > 0) {
+        // Save front overlays
+        for (const overlay of frontOverlays) {
+          await fetch('/api/save-overlay', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              overlayImage: overlay.image,
+              fileName: `${fileName}-front`,
+              position: 'front'
+            }),
           });
+        }
 
-          // Ensure base apparel image has lower z-index
-          const apparelContainer = clonedDoc.querySelector('[style*="z-index: 1"]');
-          if (apparelContainer) {
-            (apparelContainer as HTMLElement).style.zIndex = '1';
-          }
-
-          // Remove any background from the capture area
-          const frontView = clonedDoc.getElementById('frontView');
-          const backView = clonedDoc.getElementById('backView');
-          if (frontView) frontView.style.background = 'none';
-          if (backView) backView.style.background = 'none';
-        },
-        removeContainer: false
-      };
-
-      // Capture front view with overlays
-      const frontCanvas = await html2canvas(frontView as HTMLElement, canvasOptions);
-      const frontImage = frontCanvas.toDataURL('image/png', 1.0);
-
-      // Capture back view with overlays
-      const backCanvas = await html2canvas(backView as HTMLElement, canvasOptions);
-      const backImage = backCanvas.toDataURL('image/png', 1.0);
-
-      // Verify images are not empty
-      if (frontImage === 'data:image/png;base64,' || backImage === 'data:image/png;base64,') {
-        throw new Error('Failed to capture one or both views - empty image generated');
+        // Save back overlays
+        for (const overlay of backOverlays) {
+          await fetch('/api/save-overlay', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              overlayImage: overlay.image,
+              fileName: `${fileName}-back`,
+              position: 'back'
+            }),
+          });
+        }
       }
 
+      // Send to API
       const response = await fetch('/api/save-design', {
         method: 'POST',
         headers: {
@@ -861,14 +772,15 @@ export default function Customisation() {
         body: JSON.stringify({
           frontImage,
           backImage,
+          fileName,
           customerName: customerName.trim(),
           phoneNumber: phoneNumber.trim(),
-          fileName: fileName
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to save design');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save design');
       }
 
       const data = await response.json();
@@ -881,12 +793,10 @@ export default function Customisation() {
           setCustomerName('');
           setPhoneNumber('');
         }, 2000);
-      } else {
-        throw new Error(data.error || 'Failed to save design');
       }
     } catch (error) {
-      console.error('Error saving design:', error);
-      alert('Failed to save design. Please try again.');
+      console.error('Error in saveDesign:', error);
+      alert(error instanceof Error ? error.message : 'Failed to save design. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -940,6 +850,7 @@ export default function Customisation() {
 
   // Add click handler for the main container to deselect when clicking outside
   const handleContainerClick = (e: React.MouseEvent) => {
+    // Only deselect if clicking directly on the container background
     if (e.target === e.currentTarget) {
       setSelectedOverlayId(null);
     }
@@ -948,114 +859,139 @@ export default function Customisation() {
   return (
     <main className="min-h-screen bg-black py-4 sm:py-16">
       <div className="flex justify-center gap-4 mb-4">
-        {/* Front view container */}
-        <div 
-          ref={frontViewRef}
-          data-testid="front-view"
-          className="relative"
-          style={{
-            width: '375px',
-            height: '425px',
-            position: 'relative',
-            overflow: 'visible',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-        >
-          {/* Base apparel layer */}
-          <div className="absolute inset-0" style={{ position: 'absolute', zIndex: 1 }}>
-            <Image
-              src={selectedApparel?.image || '/images/white-tshirt.png'}
-              alt="T-shirt front view"
-              fill
-              style={{ 
-                objectFit: 'contain',
-                maxWidth: '90%',  // Added to normalize size
-                maxHeight: '90%'  // Added to normalize size
-              }}
-              priority
-              crossOrigin="anonymous"
-            />
-          </div>
-
-          {/* Overlay container - higher z-index */}
-          <div className="absolute inset-0" style={{ position: 'absolute', zIndex: 20 }}>
-            {frontOverlays.map(overlay => (
-              <DraggableOverlay
-                key={overlay.id}
-                id={overlay.id}
-                image={overlay.image}
-                position={overlay.position}
-                onPositionChange={(newPosition) => 
-                  handlePositionChange(overlay.id, newPosition, 'front')
-                }
-                onDelete={() => handleDeleteOverlay(overlay.id, 'front')}
-                isSelected={selectedOverlayId === overlay.id}
-                onSelect={() => setSelectedOverlayId(overlay.id)}
+        {/* Conditionally render active view */}
+        {activeView === 'front' ? (
+          /* Front View Container */
+          <div 
+            ref={frontViewRef}
+            data-testid="front-view"
+            className="relative"
+            style={{
+              width: '375px',
+              height: '375px',
+              position: 'relative',
+              overflow: 'visible',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            {/* Base T-shirt Image */}
+            <div className="absolute inset-0 flex items-center justify-center" style={{ position: 'absolute', zIndex: 1 }}>
+              <Image
+                src={selectedApparel?.image || '/images/white-tshirt.png'}
+                alt="T-shirt front view"
+                fill
+                data-next-image
+                style={{ 
+                  objectFit: 'contain',
+                  margin: 'auto',
+                  maxWidth: '100%',
+                  maxHeight: '100%',
+                  left: '50%',
+                  top: '100%',
+                  transform: 'translate(-50%, -50%)'
+                }}
+                priority
+                crossOrigin="anonymous"
               />
-            ))}
-          </div>
-        </div>
+            </div>
 
-        {/* Back view container */}
-        <div 
-          ref={backViewRef}
-          data-testid="back-view"
-          className="relative"
-          style={{
-            width: '375px',
-            height: '425px',
-            position: 'relative',
-            overflow: 'visible',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-        >
-          <div className="absolute inset-0">
-            <Image
-              src={selectedApparel?.backImage || '/images/white-tshirt-back.png'}
-              alt="T-shirt back view"
-              fill
-              style={{ 
-                objectFit: 'contain',
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                maxWidth: '90%',  // Added to normalize size
-                maxHeight: '90%'  // Added to normalize size
-              }}
-              priority
-              crossOrigin="anonymous"
-            />
+            {/* Front Overlays */}
+            <div 
+              className="absolute inset-0" 
+              style={{ position: 'absolute', zIndex: 20 }}
+              onClick={handleContainerClick}
+            >
+              {frontOverlays.map((overlay, index) => (
+                <DraggableOverlay
+                  key={index}
+                  image={overlay.image}
+                  position={overlay.position}
+                  setPosition={(newPosition) => {
+                    const newOverlays = [...frontOverlays];
+                    newOverlays[index] = { ...overlay, position: newPosition };
+                    setFrontOverlays(newOverlays);
+                  }}
+                  isSelected={selectedOverlayId === overlay.id}
+                  onClick={() => setSelectedOverlayId(overlay.id)}
+                  onDelete={() => {
+                    setFrontOverlays(overlays => overlays.filter(o => o.id !== overlay.id));
+                    setSelectedOverlayId(null);
+                  }}
+                />
+              ))}
+            </div>
           </div>
-          <div className="absolute inset-0 flex items-center justify-center">
-            {backOverlays.map(overlay => (
-              <DraggableOverlay
-                key={overlay.id}
-                id={overlay.id}
-                image={overlay.image}
-                position={overlay.position}
-                onPositionChange={(newPosition) => 
-                  handlePositionChange(overlay.id, newPosition, 'back')
-                }
-                onDelete={() => handleDeleteOverlay(overlay.id, 'back')}
-                isSelected={selectedOverlayId === overlay.id}
-                onSelect={() => setSelectedOverlayId(overlay.id)}
+        ) : (
+          /* Back View Container */
+          <div 
+            ref={backViewRef}
+            data-testid="back-view"
+            className="relative"
+            style={{
+              width: '375px',
+              height: '375px',
+              position: 'relative',
+              overflow: 'visible',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            {/* Base T-shirt Image */}
+            <div className="absolute inset-0 flex items-center justify-center" style={{ position: 'absolute', zIndex: 1 }}>
+              <Image
+                src={selectedApparel?.backImage || '/images/white-tshirt-back.png'}
+                alt="T-shirt back view"
+                fill
+                data-next-image
+                style={{ 
+                  objectFit: 'contain',
+                  margin: 'auto',
+                  maxWidth: '100%',
+                  maxHeight: '100%',
+                  left: '50%',
+                  top: '100%',
+                  transform: 'translate(-50%, -50%)'
+                }}
+                priority
+                crossOrigin="anonymous"
               />
-            ))}
+            </div>
+
+            {/* Back Overlays */}
+            <div 
+              className="absolute inset-0 flex items-center justify-center"
+              onClick={handleContainerClick}
+            >
+              {backOverlays.map((overlay, index) => (
+                <DraggableOverlay
+                  key={index}
+                  image={overlay.image}
+                  position={overlay.position}
+                  setPosition={(newPosition) => {
+                    const newOverlays = [...backOverlays];
+                    newOverlays[index] = { ...overlay, position: newPosition };
+                    setBackOverlays(newOverlays);
+                  }}
+                  isSelected={selectedOverlayId === overlay.id}
+                  onClick={() => setSelectedOverlayId(overlay.id)}
+                  onDelete={() => {
+                    setBackOverlays(overlays => overlays.filter(o => o.id !== overlay.id));
+                    setSelectedOverlayId(null);
+                  }}
+                />
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <div className="container mx-auto px-2 sm:px-4">
         <div className="max-w-4xl mx-auto">
           {/* Add Print Side Selection Buttons */}
-          <div className="flex gap-4 mb-6">
-            {/* Color Selection */}
+          <div className="flex gap-4 mb-6 justify-center items-center">
             {apparelOptions.map((apparel) => (
               <button
                 key={apparel.id}
@@ -1074,7 +1010,7 @@ export default function Customisation() {
           </div>
 
           {/* Print Side Selection */}
-          <div className="flex gap-4 mb-6">
+          <div className="flex gap-4 mb-6 justify-center items-center">
             <button
               onClick={handleFrontClick}
               className={`px-6 py-2 rounded-lg ${
@@ -1114,7 +1050,7 @@ export default function Customisation() {
                     src={activeView === 'front' 
                       ? (selectedApparel?.image || '/images/white-tshirt.png')
                       : (selectedApparel?.backImage || '/images/white-tshirt-back.png')
-                  }
+                    }
                     alt={`${selectedApparel?.color || 'white'} t-shirt ${activeView} view`}
                     fill
                     style={{ objectFit: 'contain' }}
@@ -1159,33 +1095,41 @@ export default function Customisation() {
                 {/* DraggableOverlay components - Ensure they're above the apparel */}
                 <div className="absolute inset-0" style={{ zIndex: 30 }}>
                   {activeView === 'front' ? (
-                    frontOverlays.map(overlay => (
+                    frontOverlays.map((overlay, index) => (
                       <DraggableOverlay
-                        key={overlay.id}
-                        id={overlay.id}
+                        key={index}
                         image={overlay.image}
                         position={overlay.position}
-                        onPositionChange={(newPosition) => 
-                          handlePositionChange(overlay.id, newPosition, 'front')
-                        }
-                        onDelete={() => handleDeleteOverlay(overlay.id, 'front')}
+                        setPosition={(newPosition) => {
+                          const newOverlays = [...frontOverlays];
+                          newOverlays[index] = { ...overlay, position: newPosition };
+                          setFrontOverlays(newOverlays);
+                        }}
                         isSelected={selectedOverlayId === overlay.id}
-                        onSelect={() => setSelectedOverlayId(overlay.id)}
+                        onClick={() => setSelectedOverlayId(overlay.id)}
+                        onDelete={() => {
+                          setFrontOverlays(overlays => overlays.filter(o => o.id !== overlay.id));
+                          setSelectedOverlayId(null);
+                        }}
                       />
                     ))
                   ) : (
-                    backOverlays.map(overlay => (
+                    backOverlays.map((overlay, index) => (
                       <DraggableOverlay
-                        key={overlay.id}
-                        id={overlay.id}
+                        key={index}
                         image={overlay.image}
                         position={overlay.position}
-                        onPositionChange={(newPosition) => 
-                          handlePositionChange(overlay.id, newPosition, 'back')
-                        }
-                        onDelete={() => handleDeleteOverlay(overlay.id, 'back')}
+                        setPosition={(newPosition) => {
+                          const newOverlays = [...backOverlays];
+                          newOverlays[index] = { ...overlay, position: newPosition };
+                          setBackOverlays(newOverlays);
+                        }}
                         isSelected={selectedOverlayId === overlay.id}
-                        onSelect={() => setSelectedOverlayId(overlay.id)}
+                        onClick={() => setSelectedOverlayId(overlay.id)}
+                        onDelete={() => {
+                          setBackOverlays(overlays => overlays.filter(o => o.id !== overlay.id));
+                          setSelectedOverlayId(null);
+                        }}
                       />
                     ))
                   )}
@@ -1227,61 +1171,61 @@ export default function Customisation() {
             </div>
           )}
 
-          {/* Generation Method Toggles */}
-          <div className="flex gap-4 mb-4">
-            <div className="flex items-center">
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={useWebSearch}
-                  onChange={(e) => {
-                    setUseWebSearch(e.target.checked);
-                    if (e.target.checked) {
-                      setUseAI(false);
-                    }
-                  }}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                <span className="ms-3 text-sm font-medium text-white">Web Search</span>
+          {/* Controls Container */}
+          <div className="w-full flex flex-col items-center gap-4 mt-4">
+            {/* Toggle Switches Container */}
+            <div className="flex gap-8 items-center justify-center">
+              <label className="flex items-center cursor-pointer">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    checked={useWebSearch}
+                    onChange={(e) => {
+                      setUseWebSearch(e.target.checked);
+                      if (e.target.checked) {
+                        setUseAI(false);
+                      }
+                    }}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+                </div>
+                <span className="ml-2 text-sm font-medium text-white">Web Search</span>
               </label>
-            </div>
 
-            <div className="flex items-center">
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={useAI}
-                  onChange={(e) => {
-                    setUseAI(e.target.checked);
-                    if (e.target.checked) {
-                      setUseWebSearch(false);
-                    }
-                  }}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                <span className="ms-3 text-sm font-medium text-white">Use AI</span>
+              <label className="flex items-center cursor-pointer">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    checked={useAI}
+                    onChange={(e) => {
+                      setUseAI(e.target.checked);
+                      if (e.target.checked) {
+                        setUseWebSearch(false);
+                      }
+                    }}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+                </div>
+                <span className="ml-2 text-sm font-medium text-white">Use AI</span>
               </label>
-            </div>
 
-            <div className="flex items-center">
-              <label className="cursor-pointer flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors">
-                <UploadCloud className="w-4 h-4 text-white" />
-                <span className="text-sm font-medium text-white">Upload Images</span>
+              {/* Upload Button */}
+              <label className="bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-600 transition-colors cursor-pointer">
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={handleFileInputChange}
+                  onChange={handleFileUpload}
                   className="hidden"
-                  multiple
                 />
+                Upload Image
               </label>
             </div>
           </div>
 
           {/* Image Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8 mt-12">
             {images.map((image, index) => (
               <button
                 key={index}
@@ -1309,15 +1253,15 @@ export default function Customisation() {
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Describe the design you want to create..."
-            className="w-full h-32 p-4 bg-gray-900 text-white border border-gray-700 rounded-lg focus:border-white focus:ring-1 focus:ring-white mb-4"
+            placeholder="You think we create..."
+            className="w-full h-24 p-4 bg-gray-900 text-white border border-gray-700 rounded-lg focus:border-white focus:ring-1 focus:ring-white mb-4 -mt-8"
           />
 
           {/* Generate Button */}
           <button
             onClick={() => handleGenerateImages(false)}
             disabled={isLoading}
-            className="w-full py-3 px-6 rounded-lg text-black bg-white hover:bg-gray-200 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-3 px-6 rounded-lg text-black bg-white hover:bg-gray-200 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed -mt-2"
           >
             {isLoading ? 'Generating...' : 'Generate Design'}
           </button>
@@ -1470,3 +1414,16 @@ export default function Customisation() {
     </main>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,82 +1,129 @@
 import { google } from 'googleapis';
 import { NextResponse } from 'next/server';
+import { drive_v3 } from 'googleapis/build/src/apis/drive/v3';
 import { Readable } from 'stream';
 
-/* eslint-disable @typescript-eslint/no-unused-vars */
+// Google Drive credentials
+const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n') ?? '';
+const GOOGLE_CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL ?? '';
+const GOOGLE_DRIVE_FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID ?? '';
 
-// Helper function to convert Buffer to Stream
-function bufferToStream(buffer: Buffer) {
-  return new Readable({
-    read() {
-      this.push(buffer);
-      this.push(null);
-    }
-  });
+// Add debug logging
+console.log('Checking credentials:', {
+  hasPrivateKey: !!GOOGLE_PRIVATE_KEY,
+  hasClientEmail: !!GOOGLE_CLIENT_EMAIL,
+  hasFolderId: !!GOOGLE_DRIVE_FOLDER_ID
+});
+
+if (!GOOGLE_PRIVATE_KEY || !GOOGLE_CLIENT_EMAIL || !GOOGLE_DRIVE_FOLDER_ID) {
+  throw new Error('Missing required Google Drive credentials');
+}
+
+// Initialize Google Drive client
+const auth = new google.auth.GoogleAuth({
+  credentials: {
+    type: 'service_account',
+    private_key: GOOGLE_PRIVATE_KEY,
+    client_email: GOOGLE_CLIENT_EMAIL,
+    client_id: process.env.GOOGLE_CLIENT_ID,
+    universe_domain: 'googleapis.com'
+  },
+  scopes: ['https://www.googleapis.com/auth/drive.file']
+});
+
+const drive = google.drive({ version: 'v3', auth });
+
+// Helper function to convert Buffer to Readable stream
+function bufferToStream(buffer: Buffer): Readable {
+  const stream = new Readable();
+  stream.push(buffer);
+  stream.push(null);
+  return stream;
 }
 
 export async function POST(req: Request) {
   try {
-    const { frontImage, backImage, fileName } = await req.json();
+    console.log('Starting file upload process...');
+    
+    const { frontImage, backImage, fileName, customerName, phoneNumber } = await req.json();
 
+    // Validate input
     if (!frontImage || !backImage || !fileName) {
+      console.error('Missing required fields');
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        type: 'service_account',
-        project_id: process.env.GOOGLE_PROJECT_ID,
-        private_key_id: process.env.GOOGLE_PRIVATE_KEY_ID,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        client_id: process.env.GOOGLE_CLIENT_ID,
-      },
-      scopes: ['https://www.googleapis.com/auth/drive.file'],
-    });
-
-    const drive = google.drive({ version: 'v3', auth });
-
-    // Save front view
+    // Convert base64 images to Buffers and then to streams
     const frontBuffer = Buffer.from(frontImage.split(',')[1], 'base64');
-    const frontStream = bufferToStream(frontBuffer);
-    
-    await drive.files.create({
+    const backBuffer = Buffer.from(backImage.split(',')[1], 'base64');
+
+    console.log('Uploading front image...');
+    // Upload front view
+    const frontResponse = await drive.files.create({
       requestBody: {
         name: `${fileName}-front.png`,
-        parents: [process.env.GOOGLE_DRIVE_FOLDER_ID!],
+        parents: [GOOGLE_DRIVE_FOLDER_ID],
+        mimeType: 'image/png'
       },
       media: {
         mimeType: 'image/png',
-        body: frontStream,
-      },
-    });
+        body: bufferToStream(frontBuffer)
+      }
+    } as drive_v3.Params$Resource$Files$Create);
 
-    // Save back view
-    const backBuffer = Buffer.from(backImage.split(',')[1], 'base64');
-    const backStream = bufferToStream(backBuffer);
-    
-    await drive.files.create({
+    console.log('Front image uploaded, uploading back image...');
+    // Upload back view
+    const backResponse = await drive.files.create({
       requestBody: {
         name: `${fileName}-back.png`,
-        parents: [process.env.GOOGLE_DRIVE_FOLDER_ID!],
+        parents: [GOOGLE_DRIVE_FOLDER_ID],
+        mimeType: 'image/png'
       },
       media: {
         mimeType: 'image/png',
-        body: backStream,
-      },
-    });
+        body: bufferToStream(backBuffer)
+      }
+    } as drive_v3.Params$Resource$Files$Create);
 
+    console.log('Back image uploaded, creating metadata...');
+    // Create metadata file
+    const metadata = {
+      customerName,
+      phoneNumber,
+      timestamp: new Date().toISOString(),
+      frontImageId: frontResponse.data?.id,
+      backImageId: backResponse.data?.id
+    };
+
+    const metadataString = JSON.stringify(metadata, null, 2);
+    await drive.files.create({
+      requestBody: {
+        name: `${fileName}-metadata.json`,
+        parents: [GOOGLE_DRIVE_FOLDER_ID],
+        mimeType: 'application/json'
+      },
+      media: {
+        mimeType: 'application/json',
+        body: metadataString // Use string directly for JSON
+      }
+    } as drive_v3.Params$Resource$Files$Create);
+
+    console.log('Upload process completed successfully');
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error saving to Google Drive:', error);
+    console.error('Detailed error in Google Drive upload:', error);
+    
+    // More detailed error response
+    let errorMessage = 'Failed to save design to Google Drive';
+    if (error instanceof Error) {
+      errorMessage = `${errorMessage}: ${error.message}`;
+    }
+    
     return NextResponse.json(
-      { 
-        error: 'Failed to save design',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: errorMessage },
       { status: 500 }
     );
   }

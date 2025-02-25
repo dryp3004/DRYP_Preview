@@ -29,9 +29,8 @@ body {
 
 /* Responsive container */
 .container {
-  width: 100%;
-  margin-right: auto;
-  margin-left: auto;
+  width: 80%;
+  margin: 0 auto;
   padding-right: 1rem;
   padding-left: 1rem;
 }
@@ -59,6 +58,150 @@ body {
 @media (min-width: 1280px) {
   .container {
     max-width: 1280px;
+  }
+}
+
+/* Mobile-specific styles */
+@media screen and (max-width: 768px) {
+  .apparel-selection-container {
+    padding: 20px;
+    margin: 0 auto;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .product-preview {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+  }
+
+  .page-title {
+    font-size: 24px;
+    margin: 20px 0;
+  }
+
+  .subtitle {
+    font-size: 18px;
+    margin: 15px 0;
+  }
+
+  /* Add new customization responsive styles */
+  .customization-container {
+    padding: 1rem;
+    width: 100%;
+  }
+
+  .t-shirt-preview {
+    width: 100%;
+    max-width: 300px;
+    margin: 0 auto;
+  }
+
+  .preview-images {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .preview-images img {
+    width: 100%;
+    max-width: 280px;
+    height: auto;
+  }
+
+  .print-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: 100%;
+    max-width: 300px;
+    margin: 1rem auto;
+  }
+
+  .print-buttons button {
+    width: 100%;
+    padding: 0.8rem;
+  }
+
+  .action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    justify-content: center;
+    width: 100%;
+    max-width: 300px;
+    margin: 1rem auto;
+  }
+
+  .action-buttons button {
+    min-width: 120px;
+    padding: 0.8rem;
+  }
+
+  .image-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.8rem;
+    width: 100%;
+    padding: 1rem 0;
+  }
+
+  .image-gallery img {
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+  }
+
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .preview-container {
+    width: 100%;
+    max-width: 375px;
+    margin: 0 auto;
+  }
+
+  .controls-container {
+    width: 100%;
+    max-width: 375px;
+    margin: 1rem auto;
+  }
+
+  .action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .action-buttons > * {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .image-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.5rem;
+  }
+}
+
+/* For extra small devices */
+@media screen and (max-width: 375px) {
+  .action-buttons button {
+    min-width: 100px;
+    font-size: 0.9rem;
+  }
+
+  .image-gallery {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+
+  .action-buttons > * {
+    min-width: 100px;
   }
 }
 
@@ -175,5 +318,30 @@ input[type="range"]::-webkit-slider-thumb {
   }
   100% {
     color: red;
+  }
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Styles for tablets */
+@media (max-width: 768px) {
+  .sidebar {
+    display: none; /* Hide sidebar on smaller screens */
+  }
+  .content {
+    width: 100%; /* Make content full width */
+  }
+}
+
+/* Styles for mobile devices */
+@media (max-width: 480px) {
+  .header {
+    font-size: 1.2em; /* Adjust font size for readability */
+  }
+  .nav {
+    display: block; /* Stack navigation items */
   }
 }

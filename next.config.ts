@@ -1,17 +1,18 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: '**',
-        pathname: '**',
+        hostname: 'encrypted-tbn0.gstatic.com',
       },
       {
-        protocol: 'http',
-        hostname: '**',
-        pathname: '**',
+        protocol: 'https',
+        hostname: '*.googleusercontent.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.google.com',
       }
     ],
   },
